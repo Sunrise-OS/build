@@ -1,0 +1,14 @@
+*.afdt
+kernels/
+*.bin
+*.log
+stage2_table.bin
+qemu.afdt
+qemu_canonical.afdt
+qemu-xnu.log
+xnu-payload.bin
+xnu-ramdisk.bin
+lynx.afdt
+/tools
+/tools-src
+/tools-build
