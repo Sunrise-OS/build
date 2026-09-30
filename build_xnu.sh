@@ -24,6 +24,8 @@
 #   TOOLS_DIR            host tool prefix      (default: ./tools)
 #   SRC_DIR              tool checkouts        (default: ./tools-src)
 #   BUILD_DIR            host tool build dir   (default: ./tools-build)
+#   Q1N1_DIR             q1n1 UEFI source tree  (default: ~/src/q1n1)
+#   XNU_ESP_DIR          directory for boot files (default: /tmp/xnu-esp)
 #   COMPILER_RT_SRC      compiler-rt source tree (for libclang_rt.profile-xnu.a)
 #   LOG                  build log path        (default: ./build.log)
 #   BOOTSTRAP_CMDS_DIR, IIG_DIR, XCBUILD_DIR, AVAILABILITY_DIR
@@ -40,6 +42,8 @@ SRC_DIR=${SRC_DIR:-$SCRIPT_DIR/tools-src}
 BUILD_DIR=${BUILD_DIR:-$SCRIPT_DIR/tools-build}
 LOG=${LOG:-$SCRIPT_DIR/build.log}
 COMPILER_RT_SRC=${COMPILER_RT_SRC:-$HOME/src/llvm-project/compiler-rt}
+Q1N1_DIR=${Q1N1_DIR:-$HOME/src/q1n1}
+XNU_ESP_DIR=${XNU_ESP_DIR:-/tmp/xnu-esp}
 AVAILABILITY_VERSION=${AVAILABILITY_VERSION:-12377.121.6}
 
 BOOTSTRAP_CMDS_URL=${BOOTSTRAP_CMDS_URL:-https://github.com/apple-oss-distributions/bootstrap_cmds}
@@ -466,6 +470,16 @@ build_kernel() {
     llvm-nm "$kernel" 2>/dev/null | awk '$3=="__mh_execute_header"{printf "    __mh_execute_header = %s\n",$1}'
     llvm-objdump --macho --private-headers "$kernel" 2>/dev/null \
         | awk '/segname __TEXT/{s=1} s&&/vmaddr/&&!p{printf "    __TEXT vmaddr = %s\n",$2; p=1}'
+
+    [ -d "$Q1N1_DIR" ] || die "q1n1 tree not found: $Q1N1_DIR"
+    log "building q1n1 UEFI loader"
+    make -C "$Q1N1_DIR" uefi
+
+    mkdir -p "$XNU_ESP_DIR"
+    log "building AFDT at $XNU_ESP_DIR/AFDT"
+    python3 "$SCRIPT_DIR/qemu/mkafdt.py" \
+        --output "$XNU_ESP_DIR/AFDT" --ramdisk-size 4096
+    [ -s "$XNU_ESP_DIR/AFDT" ] || die "AFDT was not produced"
 }
 
 # ---- main -------------------------------------------------------------------
