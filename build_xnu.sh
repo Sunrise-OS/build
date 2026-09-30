@@ -525,12 +525,14 @@ build_kernelcache() { # <kernel>
     compile_kext_source "$SCRIPT_DIR/kernelcache/stubs/security_stub.c" "$work/security_stub.o"
     # Our own platform drivers (kernelcache/drivers)
     compile_kext_source "$SCRIPT_DIR/kernelcache/drivers/OSSPlatformExpert.cpp" "$work/OSSPlatformExpert.o"
+    compile_kext_source "$SCRIPT_DIR/kernelcache/drivers/OSSARMCPU.cpp" "$work/OSSARMCPU.o"
     log "prelinking kernelcache"
     python3 "$SCRIPT_DIR/kernelcache/prelink-kernelcache.py" --kernel "$kernel" --ld "$KEXT_LD" \
         --work "$work/prelink" --kext "$work/corecrypto.o" \
         "$CORECRYPTO_DIR/corecrypto_kext/corecrypto_kext-Info.plist" corecrypto.kext \
         --kext "$work/security_stub.o" "$SCRIPT_DIR/kernelcache/stubs/security_stub-Info.plist" security_stub.kext \
         --kext "$work/OSSPlatformExpert.o" "$SCRIPT_DIR/kernelcache/drivers/OSSPlatformExpert-Info.plist" OSSPlatformExpert.kext \
+        --kext "$work/OSSARMCPU.o" "$SCRIPT_DIR/kernelcache/drivers/OSSARMCPU-Info.plist" OSSARMCPU.kext \
         -o "$XNU_ESP_DIR/kernelcache" || die "kernelcache prelink failed"
 }
 
