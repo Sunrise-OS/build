@@ -24,7 +24,7 @@
 #   TOOLS_DIR            host tool prefix      (default: ./tools)
 #   SRC_DIR              tool checkouts        (default: ./tools-src)
 #   BUILD_DIR            host tool build dir   (default: ./tools-build)
-#   COMPILER_RT_SRC      compiler-rt 21.1.8 source tree (for libclang_rt.profile-xnu.a)
+#   COMPILER_RT_SRC      compiler-rt source tree (for libclang_rt.profile-xnu.a)
 #   LOG                  build log path        (default: ./build.log)
 #   BOOTSTRAP_CMDS_DIR, IIG_DIR, XCBUILD_DIR, AVAILABILITY_DIR
 #                        pre-existing checkouts, otherwise cloned
@@ -299,6 +299,10 @@ build_mig() {
     rm -rf "$b"; mkdir -p "$b"
     cp -r "$src/migcom.tproj" "$b/src"
 
+    # migcom's source includes Darwin Mach headers directly. The patch adds
+    # minimal Linux-host stubs without modifying the upstream checkout.
+    patch -d "$b/src" -p1 < "$SCRIPT_DIR/patches/mig-linux-mach-headers.patch"
+
     # lexxer.l includes the bison-generated header under its old name.
     sed -i 's/y\.tab\.h/parser.tab.h/' "$b/src/lexxer.l"
 
@@ -365,6 +369,8 @@ build_availability() {
 }
 
 ensure_tools() {
+    need_cmd clang
+    need_cmd clang++
     need_cmd git
     need_cmd clang
     need_cmd flex
@@ -374,6 +380,9 @@ ensure_tools() {
     need_cmd llvm-ar
     need_cmd llvm-config
     need_cmd python3
+    need_cmd patch
+    need_cmd unifdef
+    need_cmd tcsh
 
     mkdir -p "$TOOLS_DIR/bin" "$TOOLS_DIR/libexec" \
              "$TOOLS_DIR/devroot/usr/local/libexec" "$BUILD_DIR" "$SRC_DIR"
@@ -418,14 +427,15 @@ build_kernel() {
     [ -d "$XNU_DIR" ] || die "XNU tree not found: $XNU_DIR"
 
     if [ "$CLEAN" = 1 ]; then
-        log "removing $XNU_DIR/BUILD/obj/RELEASE_ARM64_QEMU"
-        rm -rf "$XNU_DIR/BUILD/obj/RELEASE_ARM64_QEMU"
+        log "removing stale XNU build and exported-header outputs"
+        rm -rf "$XNU_DIR/BUILD/obj/RELEASE_ARM64_QEMU" \
+               "$XNU_DIR/BUILD/obj/EXPORT_HDRS"
     fi
 
     [ -n "$COMPILER_RT_SRC" ] || die "COMPILER_RT_SRC is empty"
     if [ ! -d "$COMPILER_RT_SRC" ]; then
         warn "COMPILER_RT_SRC ($COMPILER_RT_SRC) does not exist;"
-        warn "libclang_rt.profile-xnu.a will fail to build (fetch compiler-rt 21.1.8 sources)"
+        warn "libclang_rt.profile-xnu.a will fail to build (fetch compiler-rt sources)"
     fi
 
     log "building kernel: ARCH_CONFIGS=ARM64 KERNEL_CONFIGS=RELEASE MACHINE_CONFIGS=QEMU PRE_LTO=0 -j$JOBS"
@@ -443,6 +453,7 @@ build_kernel() {
         BUILD_LTO=0 \
         USE_LTO=0 \
         PRE_LTO=0 \
+        BUILD_WERROR=0 \
         -j"$JOBS" || rc=$?
 
     local kernel=$XNU_DIR/BUILD/obj/RELEASE_ARM64_QEMU/kernel.release.qemu

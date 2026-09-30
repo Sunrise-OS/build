@@ -1,0 +1,117 @@
+diff --git a/mach/boolean.h b/mach/boolean.h
+new file mode 100644
+index 0000000..27a8022
+--- /dev/null
++++ b/mach/boolean.h
+@@ -0,0 +1,11 @@
++#ifndef XNU_MIG_LINUX_BOOLEAN_H
++#define XNU_MIG_LINUX_BOOLEAN_H
++
++typedef int boolean_t;
++
++#ifndef TRUE
++#define TRUE 1
++#define FALSE 0
++#endif
++
++#endif
+diff --git a/mach/kern_return.h b/mach/kern_return.h
+new file mode 100644
+index 0000000..6d4d972
+--- /dev/null
++++ b/mach/kern_return.h
+@@ -0,0 +1,5 @@
++#ifndef XNU_MIG_LINUX_KERN_RETURN_H
++#define XNU_MIG_LINUX_KERN_RETURN_H
++#include <stdint.h>
++typedef int32_t kern_return_t;
++#endif
+diff --git a/mach/message.h b/mach/message.h
+new file mode 100644
+index 0000000..daaaf0f
+--- /dev/null
++++ b/mach/message.h
+@@ -0,0 +1,60 @@
++#ifndef XNU_MIG_LINUX_MESSAGE_H
++#define XNU_MIG_LINUX_MESSAGE_H
++
++#include <stdint.h>
++
++typedef uint32_t natural_t;
++typedef uint32_t integer_t;
++typedef uint32_t mach_msg_bits_t;
++typedef uint32_t mach_msg_size_t;
++typedef int32_t mach_msg_id_t;
++typedef uint32_t mach_msg_timeout_t;
++typedef uint32_t mach_msg_option_t;
++typedef uint32_t mach_msg_return_t;
++typedef uint32_t mach_msg_seqno_t;
++typedef uint32_t mach_msg_descriptor_type_t;
++typedef uint32_t mach_port_t;
++typedef uint32_t mach_msg_type_number_t;
++typedef uint32_t mach_msg_type_name_t;
++typedef uint32_t mach_msg_type_size_t;
++typedef uint32_t mach_msg_type_t;
++typedef uint32_t msg_type_t;
++typedef uint32_t msg_header_t;
++
++typedef struct {
++    mach_msg_size_t msgh_descriptor_count;
++} mach_msg_body_t;
++
++typedef struct {
++    mach_msg_bits_t msgh_bits;
++    mach_msg_size_t msgh_size;
++    mach_port_t msgh_remote_port;
++    mach_port_t msgh_local_port;
++    mach_msg_size_t msgh_reserved;
++    mach_msg_id_t msgh_id;
++} mach_msg_header_t;
++
++#define MACH_MSGH_BITS_COMPLEX 0x80000000U
++#define MACH_MSGH_BITS(remote, local) ((remote) | ((local) << 8))
++#define MACH_MSGH_BITS_REMOTE(bits) ((bits) & 0xff)
++#define MACH_MSGH_BITS_LOCAL(bits) (((bits) >> 8) & 0xff)
++#define MACH_MSG_PORT_DESCRIPTOR 0
++#define MACH_MSG_OOL_DESCRIPTOR 1
++#define MACH_MSG_OOL_PORTS_DESCRIPTOR 2
++#define MACH_MSG_TYPE_MOVE_RECEIVE 16
++#define MACH_MSG_TYPE_MOVE_SEND 17
++#define MACH_MSG_TYPE_MOVE_SEND_ONCE 18
++#define MACH_MSG_TYPE_MAKE_SEND 20
++#define MACH_MSG_TYPE_MAKE_SEND_ONCE 21
++#define MACH_MSG_TYPE_COPY_SEND 19
++#define MACH_MSG_TYPE_MAKE_SEND 20
++#define MACH_MSG_TYPE_MAKE_SEND_ONCE 21
++#define MACH_MSG_TYPE_PORT_SEND MACH_MSG_TYPE_MOVE_SEND
++#define MACH_MSG_TYPE_PORT_RECEIVE MACH_MSG_TYPE_MOVE_RECEIVE
++#define MACH_MSG_TYPE_PORT_SEND_ONCE MACH_MSG_TYPE_MOVE_SEND_ONCE
++#define MACH_MSG_TYPE_PORT_NAME 15
++#define MACH_MSG_TYPE_POLYMORPHIC ((mach_msg_type_name_t)-1)
++#define MACH_MSG_TYPE_PORT_ANY(type) (((type) >= MACH_MSG_TYPE_MOVE_RECEIVE) && \
++    ((type) <= MACH_MSG_TYPE_MAKE_SEND_ONCE))
++
++#endif
+diff --git a/mach/ndr.h b/mach/ndr.h
+new file mode 100644
+index 0000000..87f784b
+--- /dev/null
++++ b/mach/ndr.h
+@@ -0,0 +1,5 @@
++#ifndef XNU_MIG_LINUX_NDR_H
++#define XNU_MIG_LINUX_NDR_H
++#include <stdint.h>
++typedef struct { uint8_t int_rep, char_rep, float_rep, reserved; } NDR_record_t;
++#endif
+diff --git a/mach/std_types.h b/mach/std_types.h
+new file mode 100644
+index 0000000..329bdf9
+--- /dev/null
++++ b/mach/std_types.h
+@@ -0,0 +1,6 @@
++#ifndef XNU_MIG_LINUX_STD_TYPES_H
++#define XNU_MIG_LINUX_STD_TYPES_H
++#include <mach/message.h>
++#include <mach/kern_return.h>
++#define NBBY 8
++#endif
