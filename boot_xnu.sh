@@ -3,7 +3,12 @@ set -euo pipefail
 
 export FIRMWARE_DIR=${FIRMWARE_DIR:-$HOME/src/firmware}
 
-pushd $FIRMWARE_DIR && cargo run --release -q -p mkesp -- $HOME/src/q1n1/build/uefi/q1n1.efi /tmp/xnu-esp.img $HOME/src/xnu/BUILD/obj/RELEASE_ARM64_QEMU/kernel.release.qemu=KERNEL /tmp/xnu-esp/AFDT=AFDT && popd
+XNU_ESP_DIR=${XNU_ESP_DIR:-/tmp/xnu-esp}
+KERNEL=$HOME/src/xnu/BUILD/obj/RELEASE_ARM64_QEMU/kernel.release.qemu
+# build_xnu.sh produces the corecrypto-prelinked kernel when a corecrypto checkout exists
+[ -s "$XNU_ESP_DIR/kernelcache" ] && KERNEL=$XNU_ESP_DIR/kernelcache
+
+pushd $FIRMWARE_DIR && cargo run --release -q -p mkesp -- $HOME/src/q1n1/build/uefi/q1n1.efi /tmp/xnu-esp.img $KERNEL=KERNEL /tmp/xnu-esp/AFDT=AFDT && popd
 
 qemu-system-aarch64 \
      -machine virt,acpi=off,gic-version=3 \
@@ -17,4 +22,6 @@ qemu-system-aarch64 \
      -serial mon:stdio \
      -bios ${FIRMWARE_DIR}/target/tinted-boot-aarch64.bin \
      -drive file=/tmp/xnu-esp.img,if=none,id=esp,format=raw \
+     -object rng-random,id=hostrng,filename=/dev/urandom \
+     -device virtio-rng-pci,rng=hostrng \
      -device virtio-blk-pci,drive=esp -s

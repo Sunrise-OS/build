@@ -12,3 +12,5 @@ lynx.afdt
 /tools
 /tools-src
 /tools-build
+/corecrypto-build
+__pycache__/

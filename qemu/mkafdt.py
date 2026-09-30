@@ -78,7 +78,12 @@ def build_afdt(
     if panic_log_phys == 0:
         panic_log_phys = ram_base + ram_size - panic_log_size
     root = _node(
-        [_prop("name", _str("device-tree"))],
+        [
+            _prop("name", _str("device-tree")),
+            # matched by kernelcache/drivers/OSSPlatformExpert (IONameMatch)
+            _prop("compatible", _str("qemu,virt")),
+            _prop("model", _str("QEMU,virt")),
+        ],
         [
             _chosen(ram_base, ram_size, ramdisk_phys, ramdisk_size, boot_args, panic_log_size),
             _defaults(),
@@ -98,7 +103,9 @@ def _chosen(
     boot_args: str,
     panic_log_size: int = 0x80000,
 ) -> bytes:
-    random_seed = bytes(((i * 0x9D + 0x5A) & 0xFF) for i in range(256))
+    # Layout placeholder only: q1n1 must replace this via EFI RNG each boot.
+    # All-zero input also fails XNU's seed sanity check with an older loader.
+    random_seed = bytes(256)
     memory_map = _node(
         [
             _prop("name", _str("memory-map")),

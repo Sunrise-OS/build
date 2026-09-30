@@ -44,6 +44,12 @@ LOG=${LOG:-$SCRIPT_DIR/build.log}
 COMPILER_RT_SRC=${COMPILER_RT_SRC:-$HOME/src/llvm-project/compiler-rt}
 Q1N1_DIR=${Q1N1_DIR:-$HOME/src/q1n1}
 XNU_ESP_DIR=${XNU_ESP_DIR:-/tmp/xnu-esp}
+# Apple's corecrypto checkout (github.com/apple/corecrypto, pinned in
+# kernelcache/build-corecrypto.py). Its license forbids redistribution, so it is
+# never copied into this repository; without it no kernelcache is produced.
+CORECRYPTO_DIR=${CORECRYPTO_DIR:-$HOME/src/corecrypto}
+# Linker with -kext support (mold-macho); defaults to ld64.mold on PATH.
+KEXT_LD=${KEXT_LD:-ld64.mold}
 AVAILABILITY_VERSION=${AVAILABILITY_VERSION:-12377.121.6}
 
 BOOTSTRAP_CMDS_URL=${BOOTSTRAP_CMDS_URL:-https://github.com/apple-oss-distributions/bootstrap_cmds}
@@ -446,6 +452,8 @@ build_kernel() {
 
     export PATH="$TOOLS_DIR/bin:$(dirname -- "$mold"):$PATH"
     local rc=0
+    # XNU scans __mod_init_func, not dyld's __init_offsets. Keep absolute
+    # constructor pointers so libkern metaclasses are initialized at boot.
     make -C "$XNU_DIR" \
         CC=clang CXX=clang++ HOST_CC=clang HOST_CXX=clang++ \
         DO_CTFMERGE=0 \
@@ -458,6 +466,7 @@ build_kernel() {
         USE_LTO=0 \
         PRE_LTO=0 \
         BUILD_WERROR=0 \
+        LDFLAGS_KERNEL_RELEASE=-Wl,-no_fixup_chains \
         -j"$JOBS" || rc=$?
 
     local kernel=$XNU_DIR/BUILD/obj/RELEASE_ARM64_QEMU/kernel.release.qemu
@@ -480,6 +489,49 @@ build_kernel() {
     python3 "$SCRIPT_DIR/qemu/mkafdt.py" \
         --output "$XNU_ESP_DIR/AFDT" --ramdisk-size 4096
     [ -s "$XNU_ESP_DIR/AFDT" ] || die "AFDT was not produced"
+
+    build_kernelcache "$kernel"
+}
+
+# Compiles a kext source (C or C++) against the exported kernel headers.
+compile_kext_source() { # <source> <object>
+    local src=$1 obj=$2 inc=() d lang=()
+    for d in "$XNU_DIR"/BUILD/obj/EXPORT_HDRS/*/; do inc+=("-I$d"); done
+    case $src in
+        *.cpp) lang=(-std=gnu++20 -fapple-kext -fno-exceptions -fno-rtti -fno-use-cxa-atexit
+                     -fno-c++-static-destructors) ;;
+    esac
+    clang -target arm64-apple-macos15 -mkernel -ffreestanding -nostdlibinc -fno-builtin -O2 \
+        -mcpu=cortex-a53 -mbranch-protection=bti -DKERNEL -DKERNEL_PRIVATE -DPRIVATE \
+        -DXNU_KERNEL_PRIVATE -DLP64 -DARM64 -D__ARM64__ -DARM64_BOARD_CONFIG_QEMU \
+        -DXNU_TARGET_OS_OSX -DIOKITCPP -DAPPLE "${lang[@]}" "${inc[@]}" \
+        -I"$XNU_DIR/BUILD/obj/RELEASE_ARM64_QEMU/libkern/RELEASE" -I"$XNU_DIR/EXTERNAL_HEADERS" \
+        -c "$src" -o "$obj" || die "failed to build $src"
+}
+
+# Prelinks corecrypto into the kernel: $XNU_ESP_DIR/kernelcache
+build_kernelcache() { # <kernel>
+    local kernel=$1 work=$SCRIPT_DIR/corecrypto-build
+    rm -f "$XNU_ESP_DIR/kernelcache"
+    if [ ! -d "$CORECRYPTO_DIR/.git" ]; then
+        warn "no corecrypto checkout at $CORECRYPTO_DIR; skipping kernelcache (boot will stop at read_random)"
+        return 0
+    fi
+    log "building corecrypto kext"
+    python3 "$SCRIPT_DIR/kernelcache/build-corecrypto.py" --source "$CORECRYPTO_DIR" \
+        --xnu "$XNU_DIR" --kernel "$kernel" --output "$work" --ld "$KEXT_LD" -j"$JOBS" \
+        || die "corecrypto build failed"
+    # Stand-ins for the closed AppleImage4/AMFI kexts (see kernelcache/stubs/security_stub.c)
+    compile_kext_source "$SCRIPT_DIR/kernelcache/stubs/security_stub.c" "$work/security_stub.o"
+    # Our own platform drivers (kernelcache/drivers)
+    compile_kext_source "$SCRIPT_DIR/kernelcache/drivers/OSSPlatformExpert.cpp" "$work/OSSPlatformExpert.o"
+    log "prelinking kernelcache"
+    python3 "$SCRIPT_DIR/kernelcache/prelink-kernelcache.py" --kernel "$kernel" --ld "$KEXT_LD" \
+        --work "$work/prelink" --kext "$work/corecrypto.o" \
+        "$CORECRYPTO_DIR/corecrypto_kext/corecrypto_kext-Info.plist" corecrypto.kext \
+        --kext "$work/security_stub.o" "$SCRIPT_DIR/kernelcache/stubs/security_stub-Info.plist" security_stub.kext \
+        --kext "$work/OSSPlatformExpert.o" "$SCRIPT_DIR/kernelcache/drivers/OSSPlatformExpert-Info.plist" OSSPlatformExpert.kext \
+        -o "$XNU_ESP_DIR/kernelcache" || die "kernelcache prelink failed"
 }
 
 # ---- main -------------------------------------------------------------------
