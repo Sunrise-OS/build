@@ -14,3 +14,11 @@ lynx.afdt
 /tools-build
 /corecrypto-build
 __pycache__/
+/.crosspkg/
+/.venv/
+/target/
+/crosspkg/_native*.so
+/crosspkg/_native*.pyd
+/xnu-headers
+/result
+/result-*

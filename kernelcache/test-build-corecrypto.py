@@ -4,6 +4,7 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("builder", Path(__file__).with_name("build-corecrypto.py"))
 builder = importlib.util.module_from_spec(spec)
@@ -48,6 +49,28 @@ class ManifestTests(unittest.TestCase):
         (self.root / "selected.c").unlink()
         with self.assertRaisesRegex(ValueError, "missing"):
             builder.kext_sources(self.root)
+
+
+class SourceTests(unittest.TestCase):
+    def test_fixed_fetcher_needs_no_git(self):
+        with patch.object(builder, "run") as run:
+            self.assertEqual(builder.verify_source(Path("/nix/source"), builder.REVISION,
+                                                   builder.REVISION), builder.REVISION)
+            run.assert_not_called()
+
+    def test_wrong_fetcher_revision_fails(self):
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            builder.verify_source(Path("/nix/source"), builder.REVISION, "wrong")
+
+    def test_dirty_git_checkout_fails(self):
+        with patch.object(builder, "run", side_effect=[builder.REVISION, " M source.c"]):
+            with self.assertRaisesRegex(ValueError, "must be clean"):
+                builder.verify_source(Path("/source"), builder.REVISION)
+
+    def test_clean_git_checkout(self):
+        with patch.object(builder, "run", side_effect=[builder.REVISION, ""]):
+            self.assertEqual(builder.verify_source(Path("/source"), builder.REVISION),
+                             builder.REVISION)
 
 
 if __name__ == "__main__":

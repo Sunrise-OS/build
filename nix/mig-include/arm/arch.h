@@ -1,0 +1,4 @@
+#ifndef XNU_MIG_COMPAT_ARM_ARCH_H
+#define XNU_MIG_COMPAT_ARM_ARCH_H
+#define _ARM_ARCH_6 1
+#endif

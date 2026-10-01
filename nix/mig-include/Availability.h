@@ -1,0 +1,5 @@
+#ifndef XNU_MIG_COMPAT_AVAILABILITY_H
+#define XNU_MIG_COMPAT_AVAILABILITY_H
+#define __API_AVAILABLE(...)
+#define __API_UNAVAILABLE(...)
+#endif

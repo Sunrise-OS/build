@@ -377,8 +377,11 @@ def kpi_interfaces(kexts):
     kexts compare against, so it must be at least what any kext asks for.
     """
     wanted = {}
+    provided = {k["CFBundleIdentifier"] for k in kexts}
     for kext in kexts:
         for name, version in kext.get("OSBundleLibraries", {}).items():
+            if name in provided:
+                continue
             wanted[name] = max(wanted.get(name, "0"), version, key=lambda v: [int(x) for x in v.split(".")])
     result = []
     for name, version in sorted(wanted.items()):
@@ -450,6 +453,10 @@ def main():
             addrs[kext_name] = placed[kernel_name] + len(regions[kernel_name])
         kext = link_kext(args.ld, obj, args.work / (Path(bundle).stem + ".kext"), addrs)
         parts, text_size, kmod, nrebase, nbind = prelink_kext(kext, symbols)
+        # Later kexts may bind to this one (list dependencies first).
+        for _, sym, ntype, value, _ in kext.symbols():
+            if not ntype & N_STAB and ntype & N_TYPE == N_SECT and ntype & N_EXT:
+                symbols.setdefault(sym, value)
         for kext_name, kernel_name in SPLIT.items():
             region = regions[kernel_name]
             if len(region) + len(parts[kext_name]) > len(region) + sz[kext_name]:

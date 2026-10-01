@@ -1,0 +1,14 @@
+--- a/pexpert/pexpert/arm64/QEMU.h
++++ b/pexpert/pexpert/arm64/QEMU.h
+@@ -47,6 +47,11 @@
+ #define ARM_PARAMETERIZED_PMAP    1
+ 
+ #include <pexpert/arm64/apple_arm64_common.h>
++/* The Cortex-A76 required by the 16 KiB page granule implements PAN.
++ * Exception entry sets PAN; copyio must clear it for authorized user accesses.
++ * Enable XNU's guards rather than disabling PAN protection globally.
++ */
++#define __ARM_PAN_AVAILABLE__     1
+ #undef  BTI_ENFORCED
+ #define BTI_ENFORCED 0
+ #undef  __ARM64_PMAP_SUBPAGE_L1__

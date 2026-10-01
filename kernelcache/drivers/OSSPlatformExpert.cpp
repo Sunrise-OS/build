@@ -47,7 +47,7 @@ OSSPlatformExpert::deleteList(void)
 const char *
 OSSPlatformExpert::excludeList(void)
 {
-	return "chosen,defaults,pram,memory-map";
+	return "chosen,defaults,options,pram,memory-map";
 }
 
 extern "C" kern_return_t OSSPlatformExpert_start(kmod_info_t *, void *);
@@ -66,6 +66,6 @@ OSSPlatformExpert_stop(kmod_info_t *, void *)
 }
 
 extern "C" {
-KMOD_EXPLICIT_DECL(org.tinted.driver.OSSPlatformExpert, "1.0.0",
+KMOD_EXPLICIT_DECL(org.opendarwin.driver.OSSPlatformExpert, "1.0.0",
     OSSPlatformExpert_start, OSSPlatformExpert_stop)
 }

@@ -1,0 +1,316 @@
+{
+  "nodes": {
+    "apfsprogs-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1748893822,
+        "narHash": "sha256-GhhuielfFvcpe9hL3fUcg2xlwFrzjiUS/ZLn0jkfkh8=",
+        "owner": "linux-apfs",
+        "repo": "apfsprogs",
+        "rev": "3721463ba7f539e532907bc1d10ed5b9a97d0449",
+        "type": "github"
+      },
+      "original": {
+        "owner": "linux-apfs",
+        "repo": "apfsprogs",
+        "rev": "3721463ba7f539e532907bc1d10ed5b9a97d0449",
+        "type": "github"
+      }
+    },
+    "availability-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1776386499,
+        "narHash": "sha256-v+ikUET6ByNEBRbPbl7ivqTJKJkZQDGG7Q20tIMt8pU=",
+        "owner": "apple-oss-distributions",
+        "repo": "AvailabilityVersions",
+        "rev": "149b1777f3e8c2133042d8e188f72e3adf6a7110",
+        "type": "github"
+      },
+      "original": {
+        "owner": "apple-oss-distributions",
+        "repo": "AvailabilityVersions",
+        "rev": "149b1777f3e8c2133042d8e188f72e3adf6a7110",
+        "type": "github"
+      }
+    },
+    "corecrypto-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1779463866,
+        "narHash": "sha256-aq1KLMD9e0k3HSy4kEBUDb9tGfEp+HpymT3PW0G9dJY=",
+        "owner": "apple",
+        "repo": "corecrypto",
+        "rev": "9612a959abb6eac0aac3ee6a7245c46365c9d81b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "apple",
+        "repo": "corecrypto",
+        "rev": "9612a959abb6eac0aac3ee6a7245c46365c9d81b",
+        "type": "github"
+      }
+    },
+    "firmware-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1790811703,
+        "narHash": "sha256-3qP411otlw36O5WlcoXVSA/AnKOq/SeHBj7toqx3n1E=",
+        "ref": "refs/heads/main",
+        "rev": "498505d68031687fe8e254c871dd56c2a0af10b9",
+        "revCount": 5,
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/Sunrise-OS/firmware"
+      },
+      "original": {
+        "rev": "498505d68031687fe8e254c871dd56c2a0af10b9",
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/Sunrise-OS/firmware"
+      }
+    },
+    "hadris-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1790817657,
+        "narHash": "sha256-WyQ2uk9VSjqea1XtC1h9ZxDT6kVx6KZ8cEQVI6p+jOY=",
+        "owner": "Sunrise-OS",
+        "repo": "hadris",
+        "rev": "6ac965d5e66bfc87d6aba7893839f5b3aa3a2226",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Sunrise-OS",
+        "repo": "hadris",
+        "rev": "6ac965d5e66bfc87d6aba7893839f5b3aa3a2226",
+        "type": "github"
+      }
+    },
+    "iig-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788666525,
+        "narHash": "sha256-LoMSmNABABtfe5Oai3DCdUahIs1Ap29Rq2zEEiY61q0=",
+        "owner": "Sunrise-OS",
+        "repo": "iig-tools",
+        "rev": "96c1ece6be1ceb6ee2fec6c434d080edc10da2b1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Sunrise-OS",
+        "repo": "iig-tools",
+        "rev": "96c1ece6be1ceb6ee2fec6c434d080edc10da2b1",
+        "type": "github"
+      }
+    },
+    "iostorage-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1776386511,
+        "narHash": "sha256-whybjI8XIaihvo16oLq6xP5pNRPZeG7Jdy5jbyWqG1k=",
+        "owner": "apple-oss-distributions",
+        "repo": "IOStorageFamily",
+        "rev": "7edb88fbae296fb7c8ce2f64e115e116e566d51c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "apple-oss-distributions",
+        "repo": "IOStorageFamily",
+        "rev": "7edb88fbae296fb7c8ce2f64e115e116e566d51c",
+        "type": "github"
+      }
+    },
+    "libdispatch-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788388427,
+        "narHash": "sha256-GodOp1Bsd7QeQmFNAAhSiZ6INR7kHVgDby36zI89b6s=",
+        "owner": "swiftlang",
+        "repo": "swift-corelibs-libdispatch",
+        "rev": "8a2c456a010d995cfa6a9efada08ea40be46b056",
+        "type": "github"
+      },
+      "original": {
+        "owner": "swiftlang",
+        "repo": "swift-corelibs-libdispatch",
+        "rev": "8a2c456a010d995cfa6a9efada08ea40be46b056",
+        "type": "github"
+      }
+    },
+    "mig-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1745982490,
+        "narHash": "sha256-6JG0sysgqLlgcpIOXfN+F0/gxpIIHZZ5et3gmDBoBGQ=",
+        "owner": "apple-oss-distributions",
+        "repo": "bootstrap_cmds",
+        "rev": "c71d2d72f48995baaea76148f61002e5299841de",
+        "type": "github"
+      },
+      "original": {
+        "owner": "apple-oss-distributions",
+        "repo": "bootstrap_cmds",
+        "rev": "c71d2d72f48995baaea76148f61002e5299841de",
+        "type": "github"
+      }
+    },
+    "mold-macho-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1790807811,
+        "narHash": "sha256-YxEiwoR8UT1XxgeWA4lA5q+HcfUcBgZvSpduRMWZec0=",
+        "owner": "rui314",
+        "repo": "mold-macho",
+        "rev": "2b57d3dc7088ec77b36a252f0814b0fd97b04665",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rui314",
+        "ref": "pull/35/head",
+        "repo": "mold-macho",
+        "type": "github"
+      }
+    },
+    "msdosfs-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1760654154,
+        "narHash": "sha256-omqRVQnRooPL/Kd54kGF+UAkj8cxOE/hSdT06pvQBYQ=",
+        "owner": "apple-oss-distributions",
+        "repo": "msdosfs",
+        "rev": "c9f076c4e7c10b4bc3b0177d114aedf1bb8b9109",
+        "type": "github"
+      },
+      "original": {
+        "owner": "apple-oss-distributions",
+        "repo": "msdosfs",
+        "rev": "c9f076c4e7c10b4bc3b0177d114aedf1bb8b9109",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1790807306,
+        "narHash": "sha256-MY0czgUwfYu6/Wwo261ldH2Mo4oKzeZsxolePLgjtn4=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "135cc0efcec11e0d70a326e18e4da7fe295d8686",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "master",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "openssl-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1790930854,
+        "narHash": "sha256-+B+EYcV8EBp1664kp0Nq9lm53aMHUXnrokVS3yxfn8k=",
+        "owner": "openssl",
+        "repo": "openssl",
+        "rev": "4d25710dbfeacbb36d055592a3bc6811172248b1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "openssl",
+        "repo": "openssl",
+        "type": "github"
+      }
+    },
+    "pthread-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1760654150,
+        "narHash": "sha256-VuMpQjxuMsdHsFq0q6QIWSWi88gVF2jNzIfti20Gkbw=",
+        "owner": "apple-oss-distributions",
+        "repo": "libpthread",
+        "rev": "42d026df5b07825070f60134b980a1ec2552dfee",
+        "type": "github"
+      },
+      "original": {
+        "owner": "apple-oss-distributions",
+        "repo": "libpthread",
+        "rev": "42d026df5b07825070f60134b980a1ec2552dfee",
+        "type": "github"
+      }
+    },
+    "q1n1-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1790809062,
+        "narHash": "sha256-vAe6gh333SYJcMMYEsq2VYF7BvbRlkrPYEzwwpfLH9Q=",
+        "owner": "Sunrise-OS",
+        "repo": "q1n1",
+        "rev": "3c0e84ae35315028141a99993b4a0a311a13f9c9",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Sunrise-OS",
+        "repo": "q1n1",
+        "rev": "3c0e84ae35315028141a99993b4a0a311a13f9c9",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "apfsprogs-src": "apfsprogs-src",
+        "availability-src": "availability-src",
+        "corecrypto-src": "corecrypto-src",
+        "firmware-src": "firmware-src",
+        "hadris-src": "hadris-src",
+        "iig-src": "iig-src",
+        "iostorage-src": "iostorage-src",
+        "libdispatch-src": "libdispatch-src",
+        "mig-src": "mig-src",
+        "mold-macho-src": "mold-macho-src",
+        "msdosfs-src": "msdosfs-src",
+        "nixpkgs": "nixpkgs",
+        "openssl-src": "openssl-src",
+        "pthread-src": "pthread-src",
+        "q1n1-src": "q1n1-src",
+        "xcbuild-src": "xcbuild-src",
+        "xnu-src": "xnu-src"
+      }
+    },
+    "xcbuild-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789270478,
+        "narHash": "sha256-Pj5WUam+H39CcpVT5fc4pUR/ztNNmpbEPCR8tT6bBxE=",
+        "owner": "Sunrise-OS",
+        "repo": "xcbuild",
+        "rev": "9fd95496a67731266e7f43fec36a4249ec6f1dec",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Sunrise-OS",
+        "repo": "xcbuild",
+        "rev": "9fd95496a67731266e7f43fec36a4249ec6f1dec",
+        "type": "github"
+      }
+    },
+    "xnu-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1790984470,
+        "narHash": "sha256-Ury1E1WoiHNmS6eln2j73KobmAkPtnYGuUFuqArnwa4=",
+        "owner": "Sunrise-OS",
+        "repo": "xnu",
+        "rev": "54ea37c23af20f9d0354c0d758eb51dc68dbcd81",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Sunrise-OS",
+        "repo": "xnu",
+        "rev": "54ea37c23af20f9d0354c0d758eb51dc68dbcd81",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

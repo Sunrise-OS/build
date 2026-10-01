@@ -87,12 +87,39 @@ def build_afdt(
         [
             _chosen(ram_base, ram_size, ramdisk_phys, ramdisk_size, boot_args, panic_log_size),
             _defaults(),
+            _options(),
             _arm_io(),
             _cpus(),
             _pram(panic_log_phys, panic_log_size),
         ],
     )
     return root
+
+
+def _nvram_proxy_image() -> bytes:
+    """Build an empty, valid CHRP NVRAM image for the volatile QEMU node."""
+    import zlib
+
+    bank_size = 0x2000
+    image = bytearray(bank_size)
+
+    def header(offset: int, length: int, name: str) -> None:
+        image[offset] = 0x70
+        struct.pack_into("<H", image, offset + 2, length // 16)
+        encoded = name.encode("ascii")[:12]
+        image[offset + 4:offset + 16] = encoded.ljust(12, b"\0")
+        checksum = image[offset] + sum(image[offset + 2:offset + 16])
+        while checksum > 0xFF:
+            checksum = (checksum & 0xFF) + (checksum >> 8)
+        image[offset + 1] = checksum
+
+    # The bank header occupies two 16-byte blocks; the remaining bank is common.
+    header(0, 32, "nvram")
+    header(32, bank_size - 32, "common")
+    struct.pack_into("<I", image, 16, 0)  # Adler checksum populated below.
+    struct.pack_into("<I", image, 20, 0)  # generation
+    struct.pack_into("<I", image, 16, zlib.adler32(image[20:]) & 0xFFFFFFFF)
+    return bytes(image)
 
 
 def _chosen(
@@ -109,7 +136,8 @@ def _chosen(
     memory_map = _node(
         [
             _prop("name", _str("memory-map")),
-            _prop("RAMDisk", struct.pack("<QQ", ramdisk_phys, ramdisk_size)),
+            *([_prop("RAMDisk", struct.pack("<QQ", ramdisk_phys, ramdisk_size))]
+              if ramdisk_size else []),
         ],
         [],
     )
@@ -126,9 +154,19 @@ def _chosen(
             _prop("kernel-ctrr-to-be-enabled", struct.pack("<I", 0)),
             _prop("debug-enabled", struct.pack("<I", 1)),
             _prop("random-seed", random_seed),
+            # Minimal volatile NVRAM image for IODTNVRAM on QEMU; no persistence.
+            _prop("nvram-bank-size", struct.pack("<I", 0x2000)),
+            _prop("nvram-bank-count", struct.pack("<I", 2)),
+            _prop("nvram-current-bank", struct.pack("<I", 0)),
+            _prop("nvram-proxy-data", _nvram_proxy_image()),
         ],
         [memory_map],
     )
+
+
+def _options() -> bytes:
+    # IODTPlatformExpert requires /options to create the in-memory NVRAM node.
+    return _node([_prop("name", _str("options"))], [])
 
 
 def _defaults() -> bytes:
@@ -214,8 +252,9 @@ def main() -> None:
     p.add_argument("-o", "--output", required=True)
     p.add_argument("--ram-base", default="0x40000000")
     p.add_argument("--ram-size", default="0x40000000", help="full DRAM bank size (1G for -m 1G)")
-    p.add_argument("--ramdisk-phys", default="0x48000000")
-    p.add_argument("--ramdisk", help="PID1 Mach-O; size taken from this file")
+    p.add_argument("--ramdisk-phys", default="0x58000000")
+    p.add_argument("--ramdisk", help="Ramdisk image; size taken from this file (loader must supply contents)")
+    p.add_argument("--no-ramdisk", action="store_true", help="Omit RAMDisk for a disk-backed root filesystem")
     p.add_argument("--ramdisk-size", default="0")
     p.add_argument("--boot-args", default=DEFAULT_BOOT_ARGS)
     p.add_argument("--panic-log-phys", default="0")
@@ -225,10 +264,13 @@ def main() -> None:
     size = int(args.ramdisk_size, 0)
     if args.ramdisk:
         size = Path(args.ramdisk).stat().st_size
-    if size <= 0:
-        raise SystemExit("ramdisk size is 0")
+    if args.no_ramdisk:
+        if args.ramdisk or size != 0:
+            p.error("--no-ramdisk cannot be combined with a ramdisk image or nonzero size")
+    elif size <= 0:
+        raise SystemExit("ramdisk size is 0; use --no-ramdisk for a disk-backed root")
     # IOKitBSDInit truncates via >> 12 (4K pages) when calling mdevadd; round up
-    # to page boundary so the mockfs memory device covers the entire Mach-O
+    # to page boundary so the memory device covers the entire image.
     size = (size + 4095) & ~4095
 
     blob = build_afdt(

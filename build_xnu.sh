@@ -50,6 +50,11 @@ XNU_ESP_DIR=${XNU_ESP_DIR:-/tmp/xnu-esp}
 CORECRYPTO_DIR=${CORECRYPTO_DIR:-$HOME/src/corecrypto}
 # Linker with -kext support (mold-macho); defaults to ld64.mold on PATH.
 KEXT_LD=${KEXT_LD:-ld64.mold}
+# libpthread provides the pthread kext XNU's BSD layer calls into (psynch, workqueues).
+PTHREAD_DIR=${PTHREAD_DIR:-$HOME/src/libpthread}
+IOSTORAGE_DIR=${IOSTORAGE_DIR:-$HOME/src/IOStorageFamily}
+# Installed (unifdef'd) kernel headers, which is what real kexts compile against.
+XNU_HDR_DIR=${XNU_HDR_DIR:-$SCRIPT_DIR/xnu-headers}
 AVAILABILITY_VERSION=${AVAILABILITY_VERSION:-12377.121.6}
 
 BOOTSTRAP_CMDS_URL=${BOOTSTRAP_CMDS_URL:-https://github.com/apple-oss-distributions/bootstrap_cmds}
@@ -494,6 +499,7 @@ build_kernel() {
 }
 
 # Compiles a kext source (C or C++) against the exported kernel headers.
+KEXT_EXTRA_CFLAGS=()
 compile_kext_source() { # <source> <object>
     local src=$1 obj=$2 inc=() d lang=()
     for d in "$XNU_DIR"/BUILD/obj/EXPORT_HDRS/*/; do inc+=("-I$d"); done
@@ -506,7 +512,56 @@ compile_kext_source() { # <source> <object>
         -DXNU_KERNEL_PRIVATE -DLP64 -DARM64 -D__ARM64__ -DARM64_BOARD_CONFIG_QEMU \
         -DXNU_TARGET_OS_OSX -DIOKITCPP -DAPPLE "${lang[@]}" "${inc[@]}" \
         -I"$XNU_DIR/BUILD/obj/RELEASE_ARM64_QEMU/libkern/RELEASE" -I"$XNU_DIR/EXTERNAL_HEADERS" \
+        -idirafter "$XNU_DIR/iokit" -idirafter "$XNU_DIR/libkern" "${KEXT_EXTRA_CFLAGS[@]}" \
         -c "$src" -o "$obj" || die "failed to build $src"
+}
+
+# `make installhdrs`: the headers a kext sees, with XNU-private sections stripped.
+# (decomment, which installhdrs runs, loops forever where plain char is unsigned, e.g.
+# aarch64 Linux, so its host build gets -fsigned-char.)
+install_kernel_headers() {
+    local k=$XNU_HDR_DIR/System/Library/Frameworks/Kernel.framework/Versions/A
+    [ -f "$k/PrivateHeaders/sys/pthread_shims.h" ] && return 0
+    log "installing kernel headers to $XNU_HDR_DIR"
+    rm -rf "$XNU_HDR_DIR" "$XNU_DIR/BUILD/obj/SETUP/decomment"
+    make -C "$XNU_DIR" installhdrs \
+        CC=clang CXX=clang++ HOST_CC="clang -fsigned-char" HOST_CXX=clang++ \
+        DO_CTFMERGE=0 FAKEROOT_DIR="$TOOLS_DIR/devroot" MIGCC=clang AR=ar-darwin \
+        ARCH_CONFIGS=ARM64 KERNEL_CONFIGS=RELEASE MACHINE_CONFIGS=QEMU \
+        DSTROOT="$XNU_HDR_DIR" SDKROOT="$TOOLS_DIR/devroot" -j"$JOBS" >/dev/null \
+        || die "make installhdrs failed"
+}
+
+# Builds the pthread kext object from libpthread/kern against the installed headers.
+build_pthread_kext() { # <workdir>
+    local work=$1 k=$XNU_HDR_DIR/System/Library/Frameworks/Kernel.framework/Versions/A f objs=()
+    install_kernel_headers
+    for f in kern_init kern_support kern_synch; do
+        clang -target arm64-apple-macos15 -mkernel -ffreestanding -nostdlibinc -fno-builtin -O2 \
+            -mcpu=cortex-a53 -mbranch-protection=bti -std=gnu11 -Wno-int-conversion \
+            -DKERNEL -DKERNEL_PRIVATE -DXNU_KERNEL_PRIVATE -DMACH_KERNEL_PRIVATE \
+            -DABSOLUTETIME_SCALAR_TYPE -DNEEDS_SCHED_CALL_T -D__PTHREAD_EXPOSE_INTERNALS__ \
+            -DLP64 -DARM64 -D__ARM64__ -DAPPLE \
+            -I"$PTHREAD_DIR/private" -I"$PTHREAD_DIR/include" -I"$PTHREAD_DIR" \
+            -isystem "$k/PrivateHeaders" -isystem "$k/Headers" -isystem "$XNU_DIR/EXTERNAL_HEADERS" \
+            -c "$PTHREAD_DIR/kern/$f.c" -o "$work/pthread_$f.o" || die "failed to build libpthread $f.c"
+        objs+=("$work/pthread_$f.o")
+    done
+    cat > "$work/pthread_module.c" <<'EOM'
+#include <mach/mach_types.h>
+#include <mach/kmod.h>
+extern kern_return_t pthread_start(kmod_info_t *, void *);
+extern kern_return_t pthread_stop(kmod_info_t *, void *);
+KMOD_EXPLICIT_DECL(com.apple.kec.pthread, "1.0.0", pthread_start, pthread_stop)
+EOM
+    clang -target arm64-apple-macos15 -mkernel -ffreestanding -nostdlibinc -fno-builtin -O2 \
+        -mcpu=cortex-a53 -mbranch-protection=bti -DKERNEL -DKERNEL_PRIVATE -DLP64 -DARM64 \
+        -isystem "$k/PrivateHeaders" -isystem "$XNU_DIR/EXTERNAL_HEADERS" \
+        -c "$work/pthread_module.c" -o "$work/pthread_module.o" || die "pthread module build failed"
+    "$KEXT_LD" -arch arm64 -r "${objs[@]}" "$work/pthread_module.o" -o "$work/pthread.o" \
+        || die "pthread link -r failed"
+    sed -e 's/\${EXECUTABLE_NAME}/pthread/; s/\$(PRODUCT_BUNDLE_IDENTIFIER)/com.apple.kec.pthread/; s/\${PRODUCT_NAME}/pthread/' \
+        "$PTHREAD_DIR/kern/pthread-Info.plist" > "$work/pthread-Info.plist"
 }
 
 # Prelinks corecrypto into the kernel: $XNU_ESP_DIR/kernelcache
@@ -526,6 +581,24 @@ build_kernelcache() { # <kernel>
     # Our own platform drivers (kernelcache/drivers)
     compile_kext_source "$SCRIPT_DIR/kernelcache/drivers/OSSPlatformExpert.cpp" "$work/OSSPlatformExpert.o"
     compile_kext_source "$SCRIPT_DIR/kernelcache/drivers/OSSARMCPU.cpp" "$work/OSSARMCPU.o"
+    local pthread_args=() storage_args=()
+    if [ -d "$IOSTORAGE_DIR" ]; then
+        log "building IOStorageFamily kext"
+        build_iostorage_kext "$work"
+        storage_args=(--kext "$work/iostorage.o" "$work/iostorage-Info.plist" IOStorageFamily.kext)
+    else
+        warn "no IOStorageFamily at $IOSTORAGE_DIR; no IOMedia"
+    fi
+    KEXT_EXTRA_CFLAGS=(-I"$work/iostorage/inc" -I"$IOSTORAGE_DIR")
+    compile_kext_source "$SCRIPT_DIR/kernelcache/drivers/IOVirtioBlk.cpp" "$work/IOVirtioBlk.o"
+    KEXT_EXTRA_CFLAGS=()
+    if [ -d "$PTHREAD_DIR/kern" ]; then
+        log "building pthread kext"
+        build_pthread_kext "$work"
+        pthread_args=(--kext "$work/pthread.o" "$work/pthread-Info.plist" pthread.kext)
+    else
+        warn "no libpthread at $PTHREAD_DIR; boot will stop at pthread_init"
+    fi
     log "prelinking kernelcache"
     python3 "$SCRIPT_DIR/kernelcache/prelink-kernelcache.py" --kernel "$kernel" --ld "$KEXT_LD" \
         --work "$work/prelink" --kext "$work/corecrypto.o" \
@@ -533,7 +606,33 @@ build_kernelcache() { # <kernel>
         --kext "$work/security_stub.o" "$SCRIPT_DIR/kernelcache/stubs/security_stub-Info.plist" security_stub.kext \
         --kext "$work/OSSPlatformExpert.o" "$SCRIPT_DIR/kernelcache/drivers/OSSPlatformExpert-Info.plist" OSSPlatformExpert.kext \
         --kext "$work/OSSARMCPU.o" "$SCRIPT_DIR/kernelcache/drivers/OSSARMCPU-Info.plist" OSSARMCPU.kext \
+        "${storage_args[@]}" "${pthread_args[@]}" \
+        --kext "$work/IOVirtioBlk.o" "$SCRIPT_DIR/kernelcache/drivers/IOVirtioBlk-Info.plist" IOVirtioBlk.kext \
         -o "$XNU_ESP_DIR/kernelcache" || die "kernelcache prelink failed"
+}
+
+# Builds IOStorageFamily (apple-oss-distributions) into $1/iostorage.o + iostorage-Info.plist.
+build_iostorage_kext() { # <workdir>
+    local w=$1/iostorage s=$IOSTORAGE_DIR k=$SCRIPT_DIR/kernelcache/iostorage f
+    local objs=() srcs=(IOAppleLabelScheme IOApplePartitionScheme IOBlockStorageDevice
+        IOFDiskPartitionScheme IOFilterScheme IOGUIDPartitionScheme IOMediaBSDClient IOMedia
+        IOPartitionScheme IORequest IORequestsPool IOStorage)
+    mkdir -p "$w/inc/IOKit/storage"
+    ln -sf "$s"/*.h "$w/inc/IOKit/storage/"
+    # IOUserBlockStorageDevice is DriverKit (iig) code; use a stub class instead.
+    sed 's/#include "IOUserBlockStorageDevice_kext.h"/#include "IOUserBlockStorageDevice_shim.h"/' \
+        "$s/IOBlockStorageDriver.cpp" > "$w/IOBlockStorageDriver.cpp"
+    KEXT_EXTRA_CFLAGS=(-I"$w/inc" -I"$s" -I"$k")
+    for f in "${srcs[@]}"; do
+        compile_kext_source "$s/$f.cpp" "$w/$f.o"; objs+=("$w/$f.o")
+    done
+    compile_kext_source "$w/IOBlockStorageDriver.cpp" "$w/IOBlockStorageDriver.o"
+    compile_kext_source "$k/IOUserBlockStorageDevice_shim.cpp" "$w/shim.o"
+    compile_kext_source "$k/IOStorageFamily-mod.cpp" "$w/mod.o"
+    KEXT_EXTRA_CFLAGS=()
+    "$KEXT_LD" -arch arm64 -r -o "$1/iostorage.o" "${objs[@]}" "$w/IOBlockStorageDriver.o" "$w/shim.o" "$w/mod.o" \
+        || die "iostorage relink failed"
+    clang -E -P -x c -DTARGET_OS_OSX=1 -Wno-trigraphs "$s/Info.plist" -o "$1/iostorage-Info.plist" 2>/dev/null
 }
 
 # ---- main -------------------------------------------------------------------

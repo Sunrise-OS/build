@@ -54,6 +54,16 @@ def undefined_symbols(nm, image):
     return {line.split()[-1] for line in run([nm, "--undefined-only", str(image)]).splitlines() if line.split()}
 
 
+def verify_source(source, required_revision, source_revision=None):
+    """Accept a fetcher's revision attestation, or verify a clean Git checkout."""
+    revision = source_revision or run(["git", "-C", str(source), "rev-parse", "HEAD"])
+    if revision != required_revision:
+        raise ValueError(f"source commit {revision} does not match {required_revision}")
+    if source_revision is None and run(["git", "-C", str(source), "status", "--porcelain"]):
+        raise ValueError("corecrypto checkout must be clean")
+    return revision
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=Path.home() / "src/corecrypto")
@@ -61,6 +71,7 @@ def main():
     parser.add_argument("--output", type=Path, default=ROOT / "corecrypto-build")
     parser.add_argument("--revision", default=REVISION, help="required source commit")
     parser.add_argument("--kernel", type=Path, help="kernel whose defined symbols satisfy the imports")
+    parser.add_argument("--source-revision", help="revision attested by a fixed source fetcher (e.g. Nix); no .git required")
     parser.add_argument("--clang", default="clang")
     parser.add_argument("--ld", default="ld64.mold")
     parser.add_argument("--nm", default="llvm-nm")
@@ -71,13 +82,11 @@ def main():
     if args.jobs < 1:
         parser.error("jobs must be positive")
     source, xnu, output = (p.resolve() for p in (args.source, args.xnu, args.output))
-    revision = run(["git", "-C", str(source), "rev-parse", "HEAD"])
-    if revision != args.revision:
-        raise ValueError(f"source commit {revision} does not match {args.revision}")
-    if run(["git", "-C", str(source), "status", "--porcelain"]):
-        raise ValueError("corecrypto checkout must be clean")
+    revision = verify_source(source, args.revision, args.source_revision)
     exports = xnu / "BUILD/obj/EXPORT_HDRS"
-    config = xnu / "BUILD/obj/RELEASE_ARM64_QEMU/libkern/RELEASE"
+    config = xnu / "BUILD/obj/DEVELOPMENT_ARM64_QEMU/libkern/DEVELOPMENT"
+    if not config.is_dir():
+        config = xnu / "BUILD/obj/RELEASE_ARM64_QEMU/libkern/RELEASE"
     if not (exports / "libkern/libkern/crypto/register_crypto.h").exists() or not config.is_dir():
         raise ValueError("build XNU first: exported headers and QEMU configuration are required")
     sources = kext_sources(source)
@@ -145,7 +154,10 @@ KMOD_EXPLICIT_DECL(com.apple.kec.corecrypto, "26.0",
     if not re.search(r"KEXT_?BUNDLE", header):
         raise ValueError("linked image is not MH_KEXT_BUNDLE:\n" + header)
     imports = undefined_symbols(args.nm, kext)
-    kernel = (args.kernel or xnu / "BUILD/obj/RELEASE_ARM64_QEMU/kernel.release.qemu").resolve()
+    kernel = args.kernel or xnu / "BUILD/obj/DEVELOPMENT_ARM64_QEMU/kernel.development.qemu"
+    if args.kernel is None and not kernel.exists():
+        kernel = xnu / "BUILD/obj/RELEASE_ARM64_QEMU/kernel.release.qemu"
+    kernel = kernel.resolve()
     defined = {line.split()[-1] for line in run([args.nm, "--defined-only", str(kernel)]).splitlines() if line.split()}
     missing = sorted(imports - defined)
     if missing:

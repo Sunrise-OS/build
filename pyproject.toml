@@ -1,0 +1,17 @@
+[build-system]
+requires = ["maturin==1.15.0"]
+build-backend = "maturin"
+
+[project]
+name = "crosspkg"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "Unsandboxed cross-package builder with a Rust dependency resolver"
+
+[project.scripts]
+crosspkg = "crosspkg.cli:main"
+
+[tool.maturin]
+python-source = "."
+module-name = "crosspkg._native"
+include = ["packages/**/*.py"]

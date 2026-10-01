@@ -1,0 +1,3 @@
+#include "IOUserBlockStorageDevice_shim.h"
+#define super IOBlockStorageDevice
+OSDefineMetaClassAndAbstractStructors(IOUserBlockStorageDevice, IOBlockStorageDevice);

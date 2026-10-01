@@ -1,0 +1,19 @@
+[package]
+name = "crosspkg"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Unsandboxed Luau-driven cross-package builder"
+
+[[bin]]
+name = "crosspkg"
+path = "rust/main.rs"
+
+[dependencies]
+anyhow = "1"
+mlua = { version = "0.12", features = ["luau-jit"] }
+sha2 = "0.10"
+
+[profile.release]
+lto = true
+codegen-units = 1

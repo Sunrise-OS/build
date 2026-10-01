@@ -1,0 +1,53 @@
+--- a/msdosfs.kextproj/msdosfs.kmodproj/msdosfs_vfsops.c
++++ b/msdosfs.kextproj/msdosfs.kmodproj/msdosfs_vfsops.c
+@@ -313,7 +313,15 @@
+ 	OSKextRetainKextWithLoadTag(OSKextGetCurrentLoadTag());
+ #endif
+ 	
+-	error = copyin(data, &args, sizeof(struct msdosfs_args));
++	if (data == 0) {
++		bzero(&args, sizeof(args));
++		args.magic = MSDOSFS_ARGSMAGIC;
++		args.mask = 0755;
++		vfs_setflags(mp, MNT_RDONLY);
++		error = 0;
++	} else {
++		error = copyin(data, &args, sizeof(struct msdosfs_args));
++	}
+ 	if (error)
+ 		goto error_exit;
+ 	if (args.magic != MSDOSFS_ARGSMAGIC)
+@@ -1655,7 +1663,7 @@
+ 	vfe.vfe_vopcnt = 2;		/* We just have vnode operations for regular files and directories, and the FAT */
+ 	vfe.vfe_opvdescs = msdosfs_vnodeop_opv_desc_list;
+ 	strlcpy(vfe.vfe_fsname, "msdos", sizeof(vfe.vfe_fsname));
+-	vfe.vfe_flags = VFS_TBLTHREADSAFE | VFS_TBLNOTYPENUM | VFS_TBLLOCALVOL | VFS_TBL64BITREADY | VFS_TBLREADDIR_EXTENDED;
++	vfe.vfe_flags = VFS_TBLCANMOUNTROOT | VFS_TBLTHREADSAFE | VFS_TBLNOTYPENUM | VFS_TBLLOCALVOL | VFS_TBL64BITREADY | VFS_TBLREADDIR_EXTENDED;
+ 	vfe.vfe_reserv[0] = 0;
+ 	vfe.vfe_reserv[1] = 0;
+ 	
+--- a/msdosfs.kextproj/msdosfs.kmodproj/msdosfs_vnops.c
++++ b/msdosfs.kextproj/msdosfs.kmodproj/msdosfs_vnops.c
+@@ -70,6 +70,7 @@
+  * October 1992
+  */
+ #include <sys/param.h>
++#include <sys/fsctl.h>
+ #include <sys/systm.h>
+ #include <sys/vnode.h>
+ #include <sys/kernel.h>
+@@ -2933,6 +2934,14 @@
+ 	vnode_t vp = ap->a_vp;
+ 	
+ 	KERNEL_DEBUG_CONSTANT(MSDOSFS_VNOP_IOCTL|DBG_FUNC_START, VTODE(vp), ap->a_command, 0, 0, 0);
++#if defined(ARM64_BOARD_CONFIG_QEMU)
++	/* Emulator bring-up only: no sealed-root authentication is performed. */
++	if (ap->a_command == FSIOC_KERNEL_ROOTAUTH &&
++	    vnode_isvroot(vp) && vfs_isrdonly(vnode_mount(vp))) {
++		printf("msdosfs: QEMU bring-up root authentication bypass (UNVERIFIED)\n");
++		return 0;
++	}
++#endif
+ 	switch(ap->a_command) {
+ 		case F_FULLFSYNC: 
+ 		{
