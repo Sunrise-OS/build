@@ -1,4 +1,10 @@
-{ lib, stdenv, src, tool, patches ? [] }:
+{
+  lib,
+  stdenv,
+  src,
+  tool,
+  patches ? [ ],
+}:
 stdenv.mkDerivation {
   pname = "apfsprogs-${tool}";
   version = "0.2.1";

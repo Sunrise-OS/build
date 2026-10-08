@@ -1,11 +1,23 @@
-{ lib, rustPlatform, src }:
+{
+  lib,
+  rustPlatform,
+  src,
+}:
 rustPlatform.buildRustPackage {
   pname = "hadris-apfs-cli";
   version = "2.4.0";
   inherit src;
   cargoLock.lockFile = src + "/Cargo.lock";
-  cargoBuildFlags = [ "-p" "hadris-apfs-cli" ];
-  cargoTestFlags = [ "-p" "hadris-apfs" "-p" "hadris-apfs-cli" ];
+  cargoBuildFlags = [
+    "-p"
+    "hadris-apfs-cli"
+  ];
+  cargoTestFlags = [
+    "-p"
+    "hadris-apfs"
+    "-p"
+    "hadris-apfs-cli"
+  ];
   postCheck = ''
     cargo check --offline --locked -p hadris-apfs --no-default-features --features alloc,read,sync,tree
   '';

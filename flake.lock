@@ -54,36 +54,35 @@
     "firmware-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1790811703,
-        "narHash": "sha256-3qP411otlw36O5WlcoXVSA/AnKOq/SeHBj7toqx3n1E=",
+        "lastModified": 1791440812,
+        "narHash": "sha256-UmguCtb97nXzToTP6ehwNjLv1RsDmQD8E85veWWS6zA=",
         "ref": "refs/heads/main",
-        "rev": "498505d68031687fe8e254c871dd56c2a0af10b9",
-        "revCount": 5,
+        "rev": "0f655564f996ebedf07a3b93ffec34a9cf1c196a",
+        "revCount": 8,
         "submodules": true,
         "type": "git",
-        "url": "https://github.com/Sunrise-OS/firmware"
+        "url": "https://github.com/theo-os/rust-firmware"
       },
       "original": {
-        "rev": "498505d68031687fe8e254c871dd56c2a0af10b9",
         "submodules": true,
         "type": "git",
-        "url": "https://github.com/Sunrise-OS/firmware"
+        "url": "https://github.com/theo-os/rust-firmware"
       }
     },
     "hadris-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1790817657,
-        "narHash": "sha256-WyQ2uk9VSjqea1XtC1h9ZxDT6kVx6KZ8cEQVI6p+jOY=",
-        "owner": "Sunrise-OS",
+        "lastModified": 1791017049,
+        "narHash": "sha256-g1tUGDsvP8gmSPETWnhmPDEE76I8Hxk4XVka8wdaECc=",
+        "owner": "hxyulin",
         "repo": "hadris",
-        "rev": "6ac965d5e66bfc87d6aba7893839f5b3aa3a2226",
+        "rev": "d94747a8f859168c0bd7f0af42c0d6eefac9a71b",
         "type": "github"
       },
       "original": {
-        "owner": "Sunrise-OS",
+        "owner": "hxyulin",
         "repo": "hadris",
-        "rev": "6ac965d5e66bfc87d6aba7893839f5b3aa3a2226",
+        "rev": "d94747a8f859168c0bd7f0af42c0d6eefac9a71b",
         "type": "github"
       }
     },
@@ -158,16 +157,15 @@
     "mold-macho-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1790807811,
-        "narHash": "sha256-YxEiwoR8UT1XxgeWA4lA5q+HcfUcBgZvSpduRMWZec0=",
+        "lastModified": 1791433705,
+        "narHash": "sha256-ltlf3HWnWDqrPFom2Y20ZjcYQGScSgqpm1eeTNKiZcg=",
         "owner": "rui314",
         "repo": "mold-macho",
-        "rev": "2b57d3dc7088ec77b36a252f0814b0fd97b04665",
+        "rev": "1df71db57b0bfb3e689a1968dde6bfbe2cff7bdb",
         "type": "github"
       },
       "original": {
         "owner": "rui314",
-        "ref": "pull/35/head",
         "repo": "mold-macho",
         "type": "github"
       }
@@ -191,33 +189,17 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1790807306,
-        "narHash": "sha256-MY0czgUwfYu6/Wwo261ldH2Mo4oKzeZsxolePLgjtn4=",
+        "lastModified": 1791434323,
+        "narHash": "sha256-rnOciZeCWnQkXg1v9QOmylfEfXsl00zBg4PHCGU9CMo=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "135cc0efcec11e0d70a326e18e4da7fe295d8686",
+        "rev": "d31d932de4d550d6c81ceca803af4cee8d04d5e8",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
         "ref": "master",
         "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
-    "openssl-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1790930854,
-        "narHash": "sha256-+B+EYcV8EBp1664kp0Nq9lm53aMHUXnrokVS3yxfn8k=",
-        "owner": "openssl",
-        "repo": "openssl",
-        "rev": "4d25710dbfeacbb36d055592a3bc6811172248b1",
-        "type": "github"
-      },
-      "original": {
-        "owner": "openssl",
-        "repo": "openssl",
         "type": "github"
       }
     },
@@ -269,7 +251,6 @@
         "mold-macho-src": "mold-macho-src",
         "msdosfs-src": "msdosfs-src",
         "nixpkgs": "nixpkgs",
-        "openssl-src": "openssl-src",
         "pthread-src": "pthread-src",
         "q1n1-src": "q1n1-src",
         "xcbuild-src": "xcbuild-src",

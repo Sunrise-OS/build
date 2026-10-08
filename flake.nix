@@ -3,10 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/master";
-    openssl-src = {
-      url = "github:openssl/openssl";
-      flake = false;
-    };
     msdosfs-src = {
       url = "github:apple-oss-distributions/msdosfs/c9f076c4e7c10b4bc3b0177d114aedf1bb8b9109";
       flake = false;
@@ -20,7 +16,7 @@
       flake = false;
     };
     firmware-src = {
-      url = "git+https://github.com/Sunrise-OS/firmware?rev=498505d68031687fe8e254c871dd56c2a0af10b9&submodules=1";
+      url = "git+https://github.com/theo-os/rust-firmware?submodules=1";
       flake = false;
     };
     q1n1-src = {
@@ -40,7 +36,7 @@
       flake = false;
     };
     mold-macho-src = {
-      url = "github:rui314/mold-macho/pull/35/head";
+      url = "github:rui314/mold-macho";
       flake = false;
     };
     xnu-src = {
@@ -72,7 +68,6 @@
   outputs =
     {
       self,
-      openssl-src,
       nixpkgs,
       xnu-src,
       libdispatch-src,
@@ -141,8 +136,18 @@
             repo = self;
           };
           boot = import ./nix/boot.nix {
-            inherit callPackage firmware-src q1n1-src rootfs;
-            inherit (llvmPackages) clang llvm lld;
+            inherit
+              callPackage
+              firmware-src
+              q1n1-src
+              rootfs
+              ;
+            inherit (llvmPackages)
+              clang-unwrapped
+              clang
+              llvm
+              lld
+              ;
             inherit (kexts) kernelcache;
             repo = self;
           };
@@ -179,7 +184,12 @@
         // boot
         // rootfs-tools
         // {
-          inherit xnu rootfs apfs-rootfs pid1;
+          inherit
+            xnu
+            rootfs
+            apfs-rootfs
+            pid1
+            ;
           default = tools.host-tools;
         };
     in

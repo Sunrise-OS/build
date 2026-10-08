@@ -25,6 +25,7 @@ PAGE = 0x4000
 LC_SEGMENT_64, LC_SYMTAB, LC_DYSYMTAB, LC_DYLD_INFO_ONLY = 0x19, 0x2, 0xB, 0x80000022
 MH_KEXT_BUNDLE, MH_EXECUTE = 11, 2
 N_STAB, N_TYPE, N_SECT, N_EXT = 0xE0, 0x0E, 0x0E, 0x01
+N_ABS = 0x02
 SEG = struct.Struct("<II16sQQQQiiII")      # 72 bytes
 SECT = struct.Struct("<16s16sQQIIIIIIII")  # 80 bytes
 NLIST = struct.Struct("<IBBHQ")
@@ -188,13 +189,18 @@ def decode_binds(data, segs):
             raise ValueError(f"unsupported bind opcode {op:#x}")
 
 
-KEXT_LINK_ARGS = ["-arch", "arm64", "-kext", "-no_fixup_chains",
+KEXT_LINK_ARGS = ["-arch", "arm64", "-kext", "-no_fixup_chains", "-no_data_const",
+                  "-rename_section", "__DATA_CONST", "__kalloc_type", "__DATA", "__kalloc_type",
+                  "-rename_section", "__DATA_CONST", "__kalloc_var", "__DATA", "__kalloc_var",
                   "-rename_section", "__TEXT", "__text", "__TEXT_EXEC", "__text",
                   "-rename_section", "__TEXT", "__stubs", "__TEXT_EXEC", "__stubs",
                   "-segprot", "__TEXT", "r--", "r--", "-segprot", "__TEXT_EXEC", "r-x", "r-x"]
 # kext segment -> kernel segment holding it (the "new kcgen" split layout)
 SPLIT = {"__TEXT": "__PRELINK_TEXT", "__DATA_CONST": "__PLK_DATA_CONST", "__TEXT_EXEC": "__PLK_TEXT_EXEC",
          "__DATA": "__PRELINK_DATA", "__LINKEDIT": "__PLK_LINKEDIT"}
+# One kernel page kept in __PLK_DATA_CONST even when no kext has const data: XNU asserts
+# that __PLK_DATA_CONST is non-empty whenever __PLK_TEXT_EXEC is (arm_vm_init.c).
+PLK_DATA_CONST_RESERVE = 0x4000
 
 
 def link_kext(ld, obj, output, addrs=None):
@@ -251,8 +257,13 @@ def prelink_kext(kext, kernel_symbols):
     for name in by_name:
         if name not in SPLIT:
             raise ValueError(f"unexpected kext segment {name}")
-    (dyld_o, _), = kext.find(LC_DYLD_INFO_ONLY)
-    rebase_off, rebase_size, bind_off, bind_size = struct.unpack_from("<4I", image, dyld_o + 8)
+    dyld_cmds = kext.find(LC_DYLD_INFO_ONLY)
+    if dyld_cmds:
+        (dyld_o, _), = dyld_cmds
+        rebase_off, rebase_size, bind_off, bind_size = struct.unpack_from("<4I", image, dyld_o + 8)
+    else:
+        # mold-macho omits LC_DYLD_INFO_ONLY for a kext without fixups.
+        dyld_o, rebase_off, rebase_size, bind_off, bind_size = None, 0, 0, 0, 0
     seg_tuples = [(s[1], 0, s[2]) for s in segs]
     rebases = sorted(set(decode_rebases(bytes(image[rebase_off:rebase_off + rebase_size]), seg_tuples)))
     binds = list(decode_binds(bytes(image[bind_off:bind_off + bind_size]), seg_tuples))
@@ -271,6 +282,24 @@ def prelink_kext(kext, kernel_symbols):
         struct.pack_into("<Q", image, file_offset(address), kernel_symbols[symbol] + addend)
     if {a for a, _, _ in binds} & set(rebases):
         raise ValueError("pointer is both rebased and bound")
+    # Imports are external UNSIGNED relocations (dysymtab extreloff/nextrel); mold-macho emits no
+    # bind table for a kext. Each slot holds an addend; store the kernel symbol plus that addend.
+    (dysym_o, _), = kext.find(LC_DYSYMTAB)
+    extreloff, nextrel = struct.unpack_from("<II", image, dysym_o + 64)
+    undefined = {i: name for i, name, _, _, _ in kext.symbols()}
+    for k in range(nextrel):
+        r_address, info = struct.unpack_from("<iI", image, extreloff + 8 * k)
+        if not (info >> 27) & 1:
+            continue
+        if info >> 28 != 0 or (info >> 25) & 3 != 3 or (info >> 24) & 1:
+            raise ValueError(f"unsupported external relocation {info:#x} at {r_address:#x}")
+        name = undefined[info & 0xFFFFFF]
+        if name not in kernel_symbols:
+            raise ValueError(f"kernel does not define {name}")
+        off = file_offset(by_name["__TEXT"][2] + r_address)
+        (addend,) = struct.unpack_from("<Q", image, off)
+        struct.pack_into("<Q", image, off, (kernel_symbols[name] + addend) & 0xFFFFFFFFFFFFFFFF)
+    struct.pack_into("<II", image, dysym_o + 64, 0, 0)
     kmod = None
     for _, name, ntype, value, where in kext.symbols():
         if name == "_kmod_info" and ntype & N_TYPE == N_SECT:
@@ -288,7 +317,8 @@ def prelink_kext(kext, kernel_symbols):
     image.extend(b"\0" * (locrel_off - len(image)) + locrel)
     (dy_o, _), = kext.find(LC_DYSYMTAB)
     struct.pack_into("<II", image, dy_o + 72, locrel_off, len(rebases))
-    struct.pack_into("<4I", image, dyld_o + 8, 0, 0, 0, 0)
+    if dyld_o is not None:
+        struct.pack_into("<4I", image, dyld_o + 8, 0, 0, 0, 0)
     new_filesize = len(image) - linkedit[4]
     struct.pack_into("<Q", image, linkedit[0] + 32, align(new_filesize))
     struct.pack_into("<Q", image, linkedit[0] + 48, new_filesize)
@@ -413,7 +443,7 @@ def main():
     kernel_bytes = args.kernel.read_bytes()
     kernel = Macho(kernel_bytes, MH_EXECUTE)
     symbols = {name: value for _, name, ntype, value, _ in kernel.symbols()
-               if not ntype & N_STAB and ntype & N_TYPE == N_SECT and ntype & N_EXT}
+               if not ntype & N_STAB and ntype & N_TYPE in (N_SECT, N_ABS) and ntype & N_EXT}
     ksegs = {s[1]: s for s in kernel.segments()}
 
     # Pass 1: sizes. Pass 2 links each kext at its final, split addresses.
@@ -424,7 +454,7 @@ def main():
         if seg["__TEXT"][3] != seg["__TEXT"][5]:
             raise ValueError("kext __TEXT must be fully file-backed")
         # LINKEDIT grows by the local relocation table; reserve room for it.
-        sizes.append({n: align(seg[n][3] + (0x40000 if n == "__LINKEDIT" else 0)) for n in seg})
+        sizes.append({n: (align(seg[n][3] + (0x40000 if n == "__LINKEDIT" else 0)) if n in seg else 0) for n in SPLIT})
     base = ksegs["__PRELINK_TEXT"][2]
     low, cursor = {}, base
     # XNU RWNX-maps everything from the end of PLK_DATA_CONST up to __TEXT after it has mapped
@@ -432,7 +462,7 @@ def main():
     for name in ("__PRELINK_TEXT", "__PLK_TEXT_EXEC", "__PLK_DATA_CONST"):
         low[name] = cursor
         kext_name = next(k for k, v in SPLIT.items() if v == name)
-        cursor += sum(sz[kext_name] for sz in sizes)
+        cursor += sum(sz[kext_name] for sz in sizes) + (PLK_DATA_CONST_RESERVE if name == "__PLK_DATA_CONST" else 0)
     if cursor > ksegs["__TEXT"][2]:
         raise ValueError("kexts do not fit below kernel __TEXT")
     linkedit = ksegs["__LINKEDIT"]
@@ -446,11 +476,14 @@ def main():
     placed = {**low, **high}
 
     regions = {v: bytearray() for v in SPLIT.values()}
+    # arm_vm_init.c asserts __PLK_DATA_CONST is non-empty whenever __PLK_TEXT_EXEC is.
+    regions["__PLK_DATA_CONST"] = bytearray(PLK_DATA_CONST_RESERVE)
     dicts = []
     for (obj, info_path, bundle), sz in zip(args.kext, sizes):
         addrs = {}
         for kext_name, kernel_name in SPLIT.items():
-            addrs[kext_name] = placed[kernel_name] + len(regions[kernel_name])
+            if sz[kext_name]:
+                addrs[kext_name] = placed[kernel_name] + len(regions[kernel_name])
         kext = link_kext(args.ld, obj, args.work / (Path(bundle).stem + ".kext"), addrs)
         parts, text_size, kmod, nrebase, nbind = prelink_kext(kext, symbols)
         # Later kexts may bind to this one (list dependencies first).
@@ -459,10 +492,10 @@ def main():
                 symbols.setdefault(sym, value)
         for kext_name, kernel_name in SPLIT.items():
             region = regions[kernel_name]
-            if len(region) + len(parts[kext_name]) > len(region) + sz[kext_name]:
+            if len(region) + len(parts.get(kext_name, b"")) > len(region) + sz[kext_name]:
                 raise ValueError(f"{bundle}: {kext_name} outgrew its reservation")
-            region.extend(parts[kext_name])
-            region.extend(b"\0" * (sz[kext_name] - len(parts[kext_name])))
+            region.extend(parts.get(kext_name, b""))
+            region.extend(b"\0" * (sz[kext_name] - len(parts.get(kext_name, b""))))
         name = bundle.removesuffix(".kext")
         info = load_info_plist(info_path, {"EXECUTABLE_NAME": name, "PRODUCT_BUNDLE_IDENTIFIER":
                                            "com.apple.kec.corecrypto"})

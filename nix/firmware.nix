@@ -6,7 +6,7 @@
   rustPlatform,
   mold,
   lld,
-  clang,
+  clang-unwrapped,
   git,
   src,
   mkimage,
@@ -28,16 +28,16 @@ stdenv.mkDerivation {
     cargo
     mold
     lld
-    clang
+    clang-unwrapped
     git
     mkimage
   ];
   dontConfigure = true;
   dontStrip = true;
   postPatch = ''
-    git -C third_party/patina apply "$PWD/third_party/patches/dxe-core-loaded-image-system-table.patch"
     git -C third_party/patina-paging apply "$PWD/third_party/patches/paging-protection-only-attributes.patch"
     git -C third_party/patina apply "$PWD/third_party/patches/dxe-core-protocols-next-arg.patch"
+    git -C third_party/patina apply "$PWD/third_party/patches/dxe-core-loaded-image-system-table.patch"
   '';
   buildPhase = ''
     export RUSTC_BOOTSTRAP=1
@@ -63,7 +63,7 @@ stdenv.mkDerivation {
     export CARGO_TARGET_AARCH64_UNKNOWN_UEFI_LINKER=${lld}/bin/lld-link
     cargo build --offline --release -Zbuild-std=core,alloc --target aarch64-unknown-none -p tinted-uefi-firmware
     cargo build --offline --release -Zbuild-std=core,alloc --target aarch64-unknown-uefi -p tinted-boot-platform --features edk2
-    CC=${clang.cc}/bin/clang mkimage target/aarch64-unknown-none/release/tinted-boot-aarch64 tinted-boot-aarch64.bin \
+    CC=${clang-unwrapped}/bin/clang mkimage target/aarch64-unknown-none/release/tinted-boot-aarch64 tinted-boot-aarch64.bin \
       target/aarch64-unknown-uefi/release/tinted-armvirt-dxe-core.efi
   '';
   installPhase = ''

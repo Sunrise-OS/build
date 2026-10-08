@@ -82,8 +82,6 @@ in
     "USE_LTO=0"
     "PRE_LTO=0"
     "BUILD_WERROR=0"
-    "LDFLAGS_KERNEL_RELEASE=-Wl,-no_fixup_chains"
-    "LDFLAGS_KERNEL_DEVELOPMENT=-Wl,-no_fixup_chains"
     "COMPILER_RT_PROFILE_SOURCE=${compiler-rt-src}"
   ];
   dontConfigure = true;
@@ -115,6 +113,7 @@ in
   '';
   preBuild = ''
     makeFlagsArray+=("FAKEROOT_DIR=$PWD/devroot" "SDKROOT=$PWD/devroot")
+    makeFlagsArray+=("LDFLAGS_KERNEL_RELEASE=-Wl,-no_fixup_chains -Wl,-read_only_relocs,suppress" "LDFLAGS_KERNEL_DEVELOPMENT=-Wl,-no_fixup_chains -Wl,-read_only_relocs,suppress")
     export SOURCE_DATE_EPOCH=1
   '';
   meta = {

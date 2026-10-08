@@ -39,10 +39,12 @@ writeShellApplication {
       -drive file=${esp}/xnu-esp.img,if=none,id=esp,format=raw,snapshot=on \
       -object rng-random,id=hostrng,filename=/dev/urandom -device virtio-rng-pci,rng=hostrng \
       -device virtio-blk-pci,drive=esp \
-      ${lib.optionalString (rootfs != null) ''
-        -global virtio-mmio.force-legacy=false \
-        -drive file=${rootfs}/rootfs.img,if=none,id=rootfs,format=raw,readonly=on \
-        -device virtio-blk-device,drive=rootfs \
-      ''}"$@"
+      ${
+        lib.optionalString (rootfs != null) ''
+          -global virtio-mmio.force-legacy=false \
+          -drive file=${rootfs}/rootfs.img,if=none,id=rootfs,format=raw,readonly=on \
+          -device virtio-blk-device,drive=rootfs \
+        ''
+      }"$@"
   '';
 }

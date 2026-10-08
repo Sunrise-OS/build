@@ -22,6 +22,8 @@ stdenv.mkDerivation (
       runHook preInstall
       mkdir -p $out/boot $headers/BUILD/obj/DEVELOPMENT_ARM64_QEMU/libkern
       install -m644 BUILD/obj/DEVELOPMENT_ARM64_QEMU/kernel.development.qemu $out/boot/kernel.development.qemu
+      # The stripped kernel carries no DWARF; dsymutil writes it to the dSYM bundle, which we keep for symbolizing panics.
+      cp -r BUILD/obj/DEVELOPMENT_ARM64_QEMU/kernel.development.qemu.dSYM $out/boot/
       # Raw exported headers/configuration are required by existing kext builders.
       cp -r BUILD/obj/EXPORT_HDRS $headers/BUILD/obj/
       cp -r BUILD/obj/DEVELOPMENT_ARM64_QEMU/libkern/DEVELOPMENT $headers/BUILD/obj/DEVELOPMENT_ARM64_QEMU/libkern/

@@ -10,7 +10,6 @@ rustPlatform.buildRustPackage {
   cargoLock = {
     lockFile = src + "/Cargo.lock";
     outputHashes = {
-      "mimalloc-0.1.52" = "sha256-IF7/1rS0Pazst3rll691hhbB4QZkLHVAr7nv8Uqaf1s=";
     };
   };
   cargoBuildFlags = [
